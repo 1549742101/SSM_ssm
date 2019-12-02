@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd
+       http://www.springframework.org/schema/mvc
+       http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd">
+
+    <context:component-scan base-package="cn.com.guilongkeji.ssm.controller"></context:component-scan>
+    <bean
+            class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/jsp/"></property>
+        <property name="suffix" value=".jsp"></property>
+    </bean>
+    <mvc:annotation-driven></mvc:annotation-driven>
+    <mvc:default-servlet-handler />
+    <!--spring.xml-->
+    <!--引入jdbc.properties-->
+    <!--原有<bean id="propertyConfigurer"
+          class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="location" value="classpath:cn/com/guilongkeji/ssm/jdbc.properties" />
+    </bean>-->
+    <!--推荐使用-->
+    <context:property-placeholder location="classpath:cn/com/guilongkeji/ssm/jdbc.properties"/>
+    <!--配置数据库连接参数-->
+    <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource"
+          destroy-method="close">
+        <property name="driverClassName" value="${jdbc.driver}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}" />
+        <property name="password" value="${jdbc.password}" />
+        <!-- 事务是否自动提交 -->
+        <property name="defaultAutoCommit" value="${defaultAutoCommit}"></property>
+    </bean>
+    <!--配置数据库连接对象-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <!-- 自动扫描mapping.xml文件 -->
+        <property name="mapperLocations" value="classpath:cn/com/guilongkeji/ssm/mapper/*.xml"></property>
+    </bean>
+    <!--配置执行数据库操作对象-->
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg ref="sqlSessionFactory" />
+    </bean>
+    <!--对登录业务逻辑类Login进行sqlSession对象的注入-->
+    <bean id="login" class="cn.com.guilongkeji.ssm.service.Login" >
+        <property name="sqlSession" ref="sqlSessionTemplate"/>
+    </bean>
+    <!--对z注册业务逻辑类Register进行sqlSession对象的注入-->
+    <bean id="register" class="cn.com.guilongkeji.ssm.service.Register" >
+        <property name="sqlSession" ref="sqlSessionTemplate"/>
+    </bean>
+    <!--加入事务管理-->
+    <bean id="transactionManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    <!-- 事务管理方法匹配规则 -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="delete*" propagation="REQUIRED" read-only="false"
+                       rollback-for="java.lang.Exception"/>
+            <tx:method name="insert*" propagation="REQUIRED" read-only="false"
+                       rollback-for="java.lang.Exception" />
+            <tx:method name="update*" propagation="REQUIRED" read-only="false"
+                       rollback-for="java.lang.Exception" />
+            <tx:method name="save*" propagation="REQUIRED" read-only="false"
+                       rollback-for="java.lang.Exception" />
+            <tx:method name="*" propagation="SUPPORTS" read-only="true"/>
+        </tx:attributes>
+    </tx:advice>
+    <aop:config>
+        <aop:pointcut id="allServiceMethods" expression="execution(* cn.com.guilongkeji.ssm.service..*.*(..))" />
+        <aop:advisor pointcut-ref="allServiceMethods" advice-ref="txAdvice" />
+    </aop:config>
+</beans>
